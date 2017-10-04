@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<title>Рендеринг квартир, поиск и сортировка</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="fiveicon.png" type="image/x-icon" />
+  <link rel="shortcut icon" href="fiveicon.png" type="image/x-icon" />
+	<link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+  <body>
+  	<div class="table">
+      <div class="table__header"><input type="txt" name="search" placeholder="Начните вводить название застройщика или ЖК" class="search"></div>
+      <div class="table__row table__row--top">
+        <div class="table__cell table__cell--builder">Застройщик</div>
+        <div class="table__cell table__cell--object">ЖК</div>
+        <div class="table__cell table__cell--percent table__cell--top">План<div class="arrows"><span class="arrow" data-arrow="toUp">▲</span><span class="arrow" data-arrow="toDown">▼</span></div></div>
+        <div class="table__cell table__cell--marketing">Реклама</div>
+      </div>
+      <div class="table__content"></div>
+    </div>
+    <script type="text/javascript">
+    var table = document.querySelector(".table__content");
+    var data;
+
+    var request = new XMLHttpRequest();
+    request.open('GET', 'data.json', true);
+    request.onload = function() {
+      if (request.status >= 200 && request.status < 400) {
+         data = JSON.parse(request.responseText);
+         //Запускаю функцию с получеными данными
+         renderMyData(data);
+      } 
+    };
+
+    request.send();
+
+    var search = document.querySelector(".search");
+
+    search.addEventListener("keyup", function(){
+      searchObjects(search.value);
+    });
+
+    var arrows = document.querySelectorAll(".arrow");
+
+    //Клик по стрелкам сортировки
+    for(var i = 0; i < arrows.length; i++){
+      arrows[i].addEventListener("click", function(){
+        var direction = this.getAttribute("data-arrow");
+        filterObjects(direction, data.data);
+      });
+    }
+
+    function filterObjects(direction, dataForSort){
+      var newObjForRender = {
+          "data":[]
+      }
+
+      var objForSearch = dataForSort;
+
+      //функция массив от меньшего к большему
+      var toUpArray = [];
+      function toUp(a, b) {
+        if (a[0] > b[0]) return 1;
+        if (a[0] < b[0]) return -1;
+      }
+
+      //функция массив от большего к меньшего
+      var toDownArray = [];
+      function toDown(a, b) {
+        if (a[0] < b[0]) return 1;
+        if (a[0] > b[0]) return -1;
+      }
+
+      var indexNumber = [];
+
+      for(var i = 0; i < objForSearch.length; i++){
+        for(var j = 0; j < objForSearch[i].blocks.length; j++){
+          var blockPlanPercentForFilter = parseFloat(objForSearch[i].blocks[j].blockPlanPercent);
+        
+          indexNumber.push([blockPlanPercentForFilter, i]);
+
+        }
+      }
+
+      //отсортировать по возрастанию
+      if(direction == "toUp"){
+        indexNumber.sort(toUp);
+      
+        for(var i = 0; i < objForSearch.length; i++){
+          objForSearch[i].blocks = objForSearch[i].blocks.sort(function (b, a) {
+              return (parseFloat(b.blockPlanPercent) - parseFloat(a.blockPlanPercent));
+          });
+        }
+      }
+
+      //отсортировать по убыванию
+      if(direction == "toDown"){
+        indexNumber.sort(toDown);
+
+        for(var i = 0; i < objForSearch.length; i++){
+          objForSearch[i].blocks = objForSearch[i].blocks.sort(function (b, a) {
+              return (parseFloat(a.blockPlanPercent) - parseFloat(b.blockPlanPercent));
+          });
+        }
+      }
+
+      //создаем отсортированный массив
+      for(var j = 0; j < indexNumber.length; j++){
+        toUpArray.push(objForSearch[indexNumber[j][1]]);
+      }
+
+      //удаляем дубли в отсортированном массиве
+      var uniqueArray = toUpArray.filter(function(item, pos) {
+          return toUpArray.indexOf(item) == pos;
+      });
+
+      newObjForRender.data = uniqueArray;
+      renderMyData(newObjForRender);
+    }
+
+    //Функция поиска по названию застройщика и объекта
+    function searchObjects(strSearch){
+      if(strSearch.length >= 3){
+        var newObjForRender = {
+          "data":[]
+        }
+
+        var strSearchUp = strSearch.toUpperCase();
+        var objForSearch = data.data;
+
+        for(var i = 0; i < objForSearch.length; i++){
+          var builderNameForSearch = objForSearch[i].builderName.toUpperCase();
+
+          //ищем по названию завтройщика
+          if(builderNameForSearch.indexOf(strSearchUp) !== -1){
+            newObjForRender.data.push(objForSearch[i]);
+          }
+
+          for(var j = 0; j < objForSearch[i].blocks.length; j++){
+            var blocksNameFoSerach = objForSearch[i].blocks[j].blockName.toUpperCase();
+      
+            if(blocksNameFoSerach.indexOf(strSearchUp) !== -1){
+              newObjForRender.data.push(objForSearch[i]);
+            }
+          }
+        }
+
+        //Клик по стрелкам сортировки
+        for(var i = 0; i < arrows.length; i++){
+          arrows[i].addEventListener("click", function(){
+            var direction = this.getAttribute("data-arrow");
+            filterObjects(direction, newObjForRender.data);
+          });
+        }
+
+        renderMyData(newObjForRender);
+      }
+      else{
+        //если в строке поиска меньше 3 символов, отображаю весь список
+
+        //Клик по стрелкам сортировки
+        for(var i = 0; i < arrows.length; i++){
+          arrows[i].addEventListener("click", function(){
+            var direction = this.getAttribute("data-arrow");
+            filterObjects(direction, data.data);
+          });
+        }
+        renderMyData(data);
+      }
+    }
+
+    //Функция рендеринга
+    function renderMyData(data){
+      table.innerHTML = "";
+      var obj = data.data;
+
+      if(data.data.length > 0){
+        for(var i = 0; i < obj.length; i++){
+          var row = document.createElement("div");
+          row.className = "table__row";
+          table.appendChild(row);
+
+          var builderName = document.createElement("div");
+          builderName.className = "table__cell table__cell--builder";
+          builderName.innerHTML = obj[i].builderName;
+          row.appendChild(builderName);
+
+          var blockName = document.createElement("div");
+          blockName.className = "table__cell table__cell--object";
+          for(var j = 0; j < obj[i].blocks.length; j++){
+            var blocksI = obj[i].blocks[j];
+
+            var blockNameSpan = document.createElement("span");
+            blockNameSpan.innerHTML = blocksI.blockName;
+            blockName.appendChild(blockNameSpan);
+
+          }
+          row.appendChild(blockName);
+
+          var blockPlanPercent = document.createElement("div");
+          blockPlanPercent.className = "table__cell table__cell--percent";
+          
+          for(var j = 0; j < obj[i].blocks.length; j++){
+            var blocksI = obj[i].blocks[j];
+
+            var blockPlanPercentSpan = document.createElement("span");
+            blockPlanPercentSpan.innerHTML = blocksI.blockPlanPercent;
+            blockPlanPercent.appendChild(blockPlanPercentSpan);
+
+          }
+
+          row.appendChild(blockPlanPercent);
+
+          var builderAdverticement = document.createElement("div");
+          builderAdverticement.className = "table__cell table__cell--marketing";
+          builderAdverticement.innerHTML = obj[i].builderAdverticement;
+          row.appendChild(builderAdverticement);
+        }
+      }
+      else{
+        table.innerHTML = "<div class='not-found'><span class='not-found__title'>Нет результатов для ваших условий</span><span class='not-found__description'>попробуйте другие условия</span></div>";
+      }
+    }
+    </script>
+  </body>
+</html> 
